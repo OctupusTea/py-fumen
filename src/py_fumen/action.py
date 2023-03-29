@@ -1,184 +1,130 @@
 # -*- coding: utf-8 -*-
 
 from dataclasses import dataclass
-from math import floor
 from typing import Tuple
 
-from .defines import is_mino_piece, InnerOperation, Piece, Rotation
 from .constants import FieldConstants
+from .operation import Mino, Rotation, Operation
 
 @dataclass
 class Action():
-    piece: InnerOperation
+    operation: Operation
     rise: bool
     mirror: bool
     colorize: bool
     comment: bool
     lock: bool
 
-def decode_bool(n: int):
-    return n != 0
-
 class ActionDecoder() :
-    width: int
-    field_top: int
-    garbage_line: int
+    PIECE_OFFSET = {
+        Mino.I: {
+            Rotation.REVERSE: (1, 0),
+            Rotation.LEFT: (0, -1),
+        },
+        Mino.O: {
+            Rotation.SPAWN: (0, -1),
+            Rotation.REVERSE: (1, 0),
+            Rotation.LEFT: (1, -1),
+        },
+        Mino.Z: {
+            Rotation.SPAWN: (0, -1),
+            Rotation.LEFT: (1, 0),
+        },
+        Mino.S: {
+            Rotation.SPAWN: (0, -1),
+            Rotation.RIGHT: (-1, 0),
+        },
+    }
 
-    def __init__(self, width: int, field_top: int, garbage_line: int):
-        self.width = width
-        self.field_top = field_top
-        self.garbage_line = garbage_line
+    _consts: FieldConstants
 
-    class PieceException(Exception):
-        pass
+    def __init__(self, consts: FieldConstants):
+        self._consts = consts
 
-    class RotationException(Exception):
-        pass
+    def decode_coords(self, encoded_coords: int,
+            mino: Mino, rotation: Rotation) -> Tuple[int, int]:
+        dx, dy = self.PIECE_OFFSET.get(mino, {}).get(rotation, (0, 0))
+        return (dx + encoded_coords % self._consts.WIDTH,
+                dy + self._consts.HEIGHT - n // self._consts.WIDTH - 1)
 
-    @staticmethod
-    def decode_piece(n: int) -> Piece:
-        if n in range(0, 9):
-            return Piece(n)
+    def decode(self, encoded_action: int) -> Action:
+        q, r = divmod(encoded_action, 8)
+        mino = Mino(r)
+        q, r = divmod(q, 4)
+        rotation = Rotation(r)
+        q, r = divmod(q, self.consts.TOTAL_BLOCK_COUNT)
+        x, y = self.decode_coords(r, mino, rotation)
+        q, r = divmod(q, 2)
+        rise = bool(r)
+        q, r = divmod(q, 2)
+        mirror = bool(r)
+        q, r = divmod(q, 2)
+        colorize = bool(r)
+        q, r = divmod(q, 2)
+        comment = bool(r)
+        q, r = divmod(q, 2)
+        lock = not bool(r)
 
-        raise ActionDecoder.PieceException('Unexpected piece')
-
-    @staticmethod
-    def decode_rotation(n: int) -> Rotation:
-        if n in range(0, 4):
-            return Rotation(n)
-
-        raise ActionDecoder.RotationException('Unexpected rotation')
-
-    def decode_coordinate(self, n: int, piece: Piece, rotation: Rotation) -> Tuple[int, int]:
-        x = n % self.width
-        ORIGIN_Y = floor(n / 10)
-        y = self.field_top - ORIGIN_Y - 1
-
-        if piece is Piece.O and rotation is Rotation.LEFT:
-            x += 1
-            y -= 1
-        elif piece is Piece.O and rotation is Rotation.REVERSE:
-            x += 1
-        elif piece is Piece.O and rotation is Rotation.SPAWN:
-            y -= 1
-        elif piece is Piece.I and rotation is Rotation.REVERSE:
-            x += 1
-        elif piece is Piece.I and rotation is Rotation.LEFT:
-            y -= 1
-        elif piece is Piece.S and rotation is Rotation.SPAWN:
-            y -= 1
-        elif piece is Piece.S and rotation is Rotation.RIGHT:
-            x -= 1
-        elif piece is Piece.Z and rotation is Rotation.SPAWN:
-            y -= 1
-        elif piece is Piece.Z and rotation is Rotation.LEFT:
-            x += 1
-
-        return (x, y)
-
-    def decode(self, v: int) -> Action:
-        value = v
-        piece_type = self.decode_piece(value % 8)
-        value = floor(value / 8)
-        rotation = self.decode_rotation(value % 4)
-        value = floor(value / 4)
-        coordinate = self.decode_coordinate(value % FieldConstants.MAX_BLOCKS, piece_type, rotation)
-        value = floor(value / FieldConstants.MAX_BLOCKS)
-        is_block_up = decode_bool(value % 2)
-        value = floor(value / 2)
-        is_mirror = decode_bool(value % 2)
-        value = floor(value / 2)
-        is_color = decode_bool(value % 2)
-        value = floor(value / 2)
-        is_comment = decode_bool(value % 2)
-        value = floor(value / 2)
-        is_lock = not decode_bool(value % 2)
-
-        return Action(
-            piece = InnerOperation(
-                x = coordinate[0],
-                y = coordinate[1],
-                piece_type = piece_type,
-                rotation = rotation
-                ),
-            rise = is_block_up,
-            mirror = is_mirror,
-            colorize = is_color,
-            comment = is_comment,
-            lock = is_lock) 
-
-def encode_bool(flag: bool) -> int:
-    return 1 if flag else 0
+        return Action(operation=Operation(mino=mino, rotation=rotation,
+                                          x=x, y=y),
+                      rise=rise, mirror=mirror, colorize=colorize,
+                      comment=comment, lock=lock)
 
 class ActionEncoder():
-    width: int
-    field_top: int
-    garbage_line: int
-
-    def __init__(self, width: int, field_top: int, garbage_line: int):
-        self.width = width
-        self.field_top = field_top
-        self.garbage_line = garbage_line
-
-    def encode_position(self, operation: InnerOperation) -> int:
-        piece_type = operation.piece_type
-        rotation = operation.rotation
-        x = operation.x
-        y = operation.y
-
-        if not is_mino_piece(piece_type):
-            x = 0
-            y = 22
-        elif piece_type is Piece.O and rotation is Rotation.LEFT:
-            x -= 1
-            y += 1
-        elif piece_type is Piece.O and rotation is Rotation.REVERSE:
-            x -= 1
-        elif piece_type is Piece.O and rotation is Rotation.SPAWN:
-            y += 1
-        elif piece_type is Piece.I and rotation is Rotation.REVERSE:
-            x -= 1
-        elif piece_type is Piece.I and rotation is Rotation.LEFT:
-            y += 1
-        elif piece_type is Piece.S and rotation is Rotation.SPAWN:
-            y += 1
-        elif piece_type is Piece.S and rotation is Rotation.RIGHT:
-            x += 1
-        elif piece_type is Piece.Z and rotation is Rotation.SPAWN:
-            y += 1
-        elif piece_type is Piece.Z and rotation is Rotation.LEFT:
-            x -= 1
-
-        return (self.field_top - y - 1) * self.width + x
-
-    class NonReachableException(Exception):
-        pass
+    PIECE_OFFSET = {
+        Mino.I: {
+            Rotation.REVERSE: (-1, 0),
+            Rotation.LEFT: (0, 1),
+        },
+        Mino.O: {
+            Rotation.SPAWN: (0, 1),
+            Rotation.REVERSE: (-1, 0),
+            Rotation.LEFT: (-1, 1),
+        },
+        Mino.Z: {
+            Rotation.SPAWN: (0, 1),
+            Rotation.LEFT: (-1, 0),
+        },
+        Mino.S: {
+            Rotation.SPAWN: (0, 1),
+            Rotation.RIGHT: (1, 0),
+        },
+    }
+    _consts: FieldConstants
 
     @staticmethod
-    def encode_rotation(operation: InnerOperation) -> int:
-        if not is_mino_piece(operation.piece_type):
+    def encode_rotation(operation: Operation) -> int:
+        if operation.mino.is_colored():
+            return operation.rotation.value
+        else:
             return 0
 
-        if isinstance(operation.rotation, Rotation):
-            return operation.rotation.value
+    def __init__(self, consts: FieldConstants):
+        self.consts = consts
 
-        raise ActionEncoder.NonReachableException('No reachable')
+    def encode_position(self, operation: Operation) -> int:
+        dx, dy = self.PIECE_OFFSET.get(
+            operation.mino, {}
+        ).get(operation.rotation, (0, 0))
+        x, y = ((dx + operation.x, dy + operation.y)
+                if operation.mino.is_colored() else (0, 22))
+        return (self.consts.HEIGHT - y - 1) * self.consts.WIDTH + x
 
     def encode(self, action: Action) -> int:
-        value = encode_bool(not action.lock)
-        value *= 2
-        value += encode_bool(action.comment)
-        value *= 2
-        value += encode_bool(action.colorize)
-        value *= 2
-        value += encode_bool(action.mirror)
-        value *= 2
-        value += encode_bool(action.rise)
-        value *= FieldConstants.MAX_BLOCKS
-        value += self.encode_position(action.piece)
-        value *= 4
-        value += self.encode_rotation(action.piece)
-        value *= 8
-        value += action.piece.piece_type.value
+        encoded_action = int(not action.lock)
+        encoded_action *= 2
+        encoded_action += int(action.comment)
+        encoded_action *= 2
+        encoded_action += int(action.colorize)
+        encoded_action *= 2
+        encoded_action += int(action.mirror)
+        encoded_action *= 2
+        encoded_action += int(action.rise)
+        encoded_action *= self.consts.TOTAL_BLOCK_COUNT
+        encoded_action += self.encode_position(action.operation)
+        encoded_action *= 4
+        encoded_action += self.encode_rotation(action.operation)
+        encoded_action *= 8
+        encoded_action += action.operation.mino
 
-        return value
+        return encoded_action

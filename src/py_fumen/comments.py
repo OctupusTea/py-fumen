@@ -1,20 +1,32 @@
 # -*- coding: utf-8 -*-
 
-from math import floor
+from typing import List
 
-COMMENT_TABLE = ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~'
-MAX_COMMENT_CHAR_VALUE = len(COMMENT_TABLE) + 1
+class CommentCodec():
+    ENCODING_TABLE = (' !"#$%&\'()*+,-./0123456789:;<=>?@'
+                      'ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`'
+                      'abcdefghijklmnopqrstuvwxyz{|}~')
+    DECODING_TABLE = {char: i for i, char in enumerate(ENCODING_TABLE)}
+    TABLE_LENGTH = len(ENCODING_TABLE) + 1
 
-class CommentParser():
-    def decode(v: int) -> str:
+    def decode(encoded_comments: List[int]) -> str:
         string = ''
-        value = v
-        for count in range (4):
-            index = value % MAX_COMMENT_CHAR_VALUE
-            string += COMMENT_TABLE[index]
-            value = floor(value / MAX_COMMENT_CHAR_VALUE)
+
+        for value in encoded_comments:
+            for i in range(4):
+                value, ch = divmod(value, self.TABLE_LENGTH)
+                string += ENCODING_TABLE[ch]
 
         return string
 
-    def encode(ch: str, count: int) -> int:
-        return COMMENT_TABLE.index(ch) * (MAX_COMMENT_CHAR_VALUE ** count)
+    def encode(comment: str) -> int, List[int]:
+        result = []
+        length = len(comment)
+
+        for i in range(0, length, 4):
+            value = 0
+            for char in reversed(comment[i:i+4]):
+                value = DECODING_TABLE[char] + value * self.TABLE_LENGTH
+            result.append(value)
+
+        return length, result

@@ -1,221 +1,66 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import annotations
-from enum import IntEnum
+
+from enum import Enum
+import re
 from typing import List, Optional
-from re import search
 
-from .defines import parse_piece, parse_piece_name, Piece
+from .operation import Mino
 
-class Operation(IntEnum):
+class _QuizOperation(Enum):
     DIRECT = 'direct'
-    SWAP = 'swap'
     STOCK = 'stock'
+    SWAP = 'swap'
 
-class Quiz():
-    quiz: str
-    
+class QuizException(Exception):
+    pass
+
+class Quiz:
     @staticmethod
-    def trim(quiz: str) -> str:
-        return quiz.strip()
-
-    class PieceException(Exception):
-        pass
-
-    @staticmethod
-    def __verify(quiz: str) -> str:
-        replaced = Quiz.trim(quiz)
-
-        if len(replaced) == 0 or quiz == '#Q=[]()' or not quiz.startswith('#Q='):
-            return quiz
-
-        if not(search("^#Q=\[[TIOSZJL]?]\([TIOSZJL]?\)[TIOSZJL]*?.*$", replaced)):
-            raise Quiz.PieceException(f"Current piece doesn't exist, however next pieces exist: {quiz}")
-
-        return replaced
-
-    def __init__(self, quiz: str):
-        self.quiz = self.__verify(quiz)
-
-    def next(self) -> str:
-        index = self.quiz.index(')') + 1
-        name = self.quiz[index:]
-
-        if name is None or name == '':
-            return ''
-
-        return name
+    def create(hold: str='', active:str='', nexts: str='') -> Quiz:
+        return Quiz(f'#Q=[{hold}]({active}){nexts}')
 
     @staticmethod
     def is_quiz_comment(comment: str) -> bool:
-        return comment.startswith('#Q=')
+        return re.search('^#Q=\[[TIOSZJL]?]\([TIOSZJL]?\)[TIOSZJL]*;?.*$', comment)
 
-    @staticmethod
-    def create(nexts: str) -> Quiz:
-        return Quiz(f"#Q=[]({nexts[0]}){nexts[1:]}")
+    def __init__(self, comment: str):
+        if not self.is_quiz_comment(comment):
+            raise QuizException(f'Unexpected quiz: {comment}')
 
-    @staticmethod
-    def create(hold: str, nexts: str) -> Quiz:        
-        return Quiz(f"#Q=[{hold}]({nexts[0]}){nexts[1:]}")
+        self._hold_piece = comment.split('[', maxsplit=1)[1].split(']', maxsplit=1)[0]
+        self._active_piece = comment.split('(', maxsplit=1)[1].split(')', maxsplit=1)[0]
+        self._next_pieces = comment.split(')', maxsplit=1)[1].split(';', maxsplit=1)[0]
+        self._comment = comment.split(';', maxsplit=1)[1] if ';' in comment else ''
 
-    def least(self) -> str:
-        index = self.quiz.index(')')
-        return self.quiz[index+1:]
+    def _next_piece(self) -> str:
+        return self._next_pieces[0:1]
 
-    def current(self) -> str:
-        index = self.quiz.index('(') + 1
-        name = self.quiz[index]
-        if name == ')':
-            return ''
-
-        return name
-
-    def hold(self) -> str:
-        index = self.quiz.index('[') + 1
-        name = self.quiz[index]
-        if name == ']':
-            return ''
-
-        return name
-
-    def least_after_next2(self) -> str:
-        index = self.quiz.index(')')
-        if self.quiz[index+1] == '':
-            return self.quiz[index+1:]
-
-        return self.quiz.substr[index+2:]
-
-    class HoldException(Exception):
-        pass
-
-    def get_operation(self, used: Piece) -> Operation:
-        used_name = parse_piece_name(used)
-        current = self.current()
-        if used_name == current:
-            return Operation.DIRECT
-
-        hold = self.hold()
-        if used_name == hold:
-            return Operation.SWAP
-        
-        if hold == '':
-            if used_name == self.next():
-                return Operation.STOCK
-
+    def _next_residue(self) -> str:
+        if len(self._next_pieces) > 1:
+            return ';'.join(self._next_pieces[1:], self._comment)
         else:
-            if current == '' and used_name == self.next():
-                return Operation.DIRECT
+            return self._comment
 
-        raise self.HoldException(f"Unexpected hold piece in quiz: {self.quiz}")
+    def next_quiz(self, used_piece: Mino) -> Quiz:
+        if used_piece.name == self._active_piece:
+            return Quiz.create(self._hold_piece, self._next_piece(),
+                               self._next_residue())
+        if self._hold_piece:
+            if used_piece.name == self._hold_piece:
+                return Quiz.create(used_piece.name, self._next_piece(),
+                                   self._next_residue())
+            elif not self._active_piece and used_piece.name == self._next_piece():
+                return Quiz.create(self._hold_piece, self._next_residue()[0:1],
+                                   self._next_residue()[1:])
+        elif used_piece.name == self._next_piece():
+            return Quiz.create(used_piece.name, self._next_residue()[0:1],
+                               self._next_residue()[1:])
 
-    def least_in_active_bag(self) -> str:
-        separate_index = self.quiz.index(';')
-        quiz = self.quiz[0, separate_index] if 0 <= separate_index else self.quiz
-        index = quiz.indexOf(')')
-        if quiz[index+1] == ';':
-            return quiz[index+1:]
+        raise QuizException(f'Unexpected hold piece: {self}')
 
-        return quiz.substr[index+2:]
-
-    def direct(self) -> Quiz:
-        if self.current() == '':
-            least = self.least_after_next2()
-            return Quiz(f"#Q=[{self.hold()}]({least[0]}){least[1:]}")
-
-        return Quiz("#Q=[{self.hold}](${self.next()})${self.leastAfterNext2()}")
-
-    def swap(self) -> Quiz:
-        if self.hold() == '':
-            raise self.HoldException(f"Cannot find hold piece: {self.quiz}")
-
-        next = self.next()
-        return Quiz(f"#Q=[${self.current()}]({next})${self.leastAfterNext2()}")
-
-    class StockException(Exception):
-        pass
-
-    def stock(self) -> Quiz:
-        if self.hold() != '' or self.next() == '':
-             raise self.StockException(f"Cannot stock: {self.quiz}")
-
-        least = self.leastAfterNext2()
-        head = least[0] if least[0] is not None else ''
-
-        if 1 < len(least):
-            return Quiz(f"#Q=[{self.current()}]({head}){least[1:]}")
-
-        return Quiz(f"#Q=[{self.current()}]({head})")
-
-    class OperationException(Exception):
-        pass
-
-    def operate(self, operation: Operation) -> Quiz:
-        if operation is Operation.DIRECT:
-            return self.direct()
-        if operation is  Operation.SWAP:
-            return self.swap()
-        if operation is  Operation.STOCK:
-            return self.stock()
-        
-        raise self.OperationException('Unexpected operation')
-
-    def can_operate(self) -> bool:
-        quiz = self.quiz
-        if quiz.startswith('#Q=[]()'):
-            quiz = self.quiz[8:]
-
-        return quiz.startswith('#Q=') and quiz != '#Q=[]()'
-
-    def get_hold_piece(self) -> Piece:
-        if not self.can_operate():
-            return Piece.EMPTY
-
-        name = self.hold()
-        if name is None or name == '' or name == ';':
-            return Piece.EMPTY
-        
-        return parse_piece(name)
-
-    def get_next_pieces(self, maximum: Optional[int] = None) -> List[Piece]:
-        if not self.can_operate():
-            return [Piece.EMPTY] * maximum if maximum is not None else []
-        
-
-        names = self.current() + self.next() + self.least_in_active_bag()[0, maximum]
-        if maximum is not None and len(names) < maximum:
-            names += ' ' * (maximum - len(names))
-
-        return [Piece.EMPTY if name is None or name == ' ' or name == '' else parse_piece_name(name) for name in [*names]]
-
-    def to_string(self) -> str:
-        return self.quiz
-
-    def next_if_end(self) -> Quiz:
-        if self.quiz.startswith('#Q=[]()'):
-            return Quiz(self.quiz[8:])
-
-        return self
-
-    def format(self) -> Quiz:
-        quiz = self.next_if_end()
-        if quiz.quiz == '#Q=[]()':
-            return Quiz('')
-
-        current = quiz.current()
-        hold = quiz.hold()
-
-        if current == '' and hold != '':
-            return Quiz(f"#Q=[]({hold}){quiz.least()}")
-
-        if current == '':
-            least = quiz.least()
-            head = least[0]
-            if head is None:
-                return Quiz('')
-
-            if head == '':
-                return Quiz(least[1:])
-
-            return Quiz(f"#Q=[]({head}){least[1:]}")
-
-        return quiz
+    def __str__(self) -> str:
+        return ''.join([f'#Q[{self._hold_piece}]({self._active_piece})',
+                        f'{self._next_pieces}',
+                        f';{self._comment}' if self._comment else ''])

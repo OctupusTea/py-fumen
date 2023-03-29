@@ -2,173 +2,168 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from itertools import zip_longest
+from typing import List, Optional, Generator
 
-from .inner_field import get_block_xys, InnerField, PlayField
-from .defines import parse_piece, parse_piece_name, parse_rotation
-from .constants import FieldConstants
+from .constants import FieldConstants as Consts
+from .operation import Mino, Rotation, Operation
 
-@dataclass
-class Operation():
-    piece_type: str
-    rotation: str
-    x: int
-    y: int
-
-@dataclass
-class XY():
-    x: int
-    y: int
-
-@dataclass
-class Mino():
-    piece_type: str
-    rotation: str
-    x: int
-    y: int
-
-    @staticmethod
-    def mino_from(operation: Operation) -> Mino:
-        return Mino(operation.piece_type, operation.rotation, operation.x, operation.y)
-
-    @staticmethod
-    def get_sort_xy(xy: XY) -> Tuple[int, int]:
-        return xy.y, xy.x
-
-    def positions(self) -> List[XY]:
-        return get_block_xys(parse_piece(self.piece_type), parse_rotation(self.rotation), self.x, self.y).sort(key=self.get_sort_xy)
-
-    def operation(self) -> Operation:
-        return Operation(self.piece_type, self.rotation, self.x, self.y)
-
-    def isValid(self) -> bool:
-        try:
-            parse_piece(self.piece_type)
-            parse_rotation(self.rotation)
-
-        except Exception as e:
-            return False
-
-        return all(0 <= position.x and position.x < 10 and 0 <= position.y and position.y < 23 for position in self.positions())
-
-    def copy(self) -> Mino:
-        return Mino(self.piece_type, self.rotation, self.x, self.y)
-
-def to_mino(operation_or_mino: Operation | Mino) -> Mino:
-    return operation_or_mino.copy() if operation_or_mino is Mino else Mino.mino_from(operation_or_mino)
+class FieldException(Exception):
+    pass
 
 class Field():
-    __field: InnerField
-
-    def __init__(self, field: InnerField):
-        self.__field = field
+    @staticmethod
+    def _to_field_range(slice_: slice=slice(None, None, None)) -> Generator:
+        return range(
+            -Consts.GARBAGE_HEIGHT if slice_.start is None else slice_.start,
+            Consts.HEIGHT if slice_.stop is None else slice_.stop,
+            1 if slice_.step is None else slice_.step
+        )
 
     @staticmethod
-    def create(field: Optional[str], garbage: Optional[str]) -> Field:
-        return Field(InnerField(field=PlayField.load(field) if field is not None else None, garbage=PlayField.load_minify(garbage) if garbage is not None else None))
+    def _empty_line() -> List[Mino]:
+        return [Mino._] * Consts.WIDTH
 
-    def can_fill(self, operation: Optional[Operation | Mino]) -> bool:
-        if operation is None:
-            return True
+    def __init__(self):
+        self._field = [[Mino._ for x in range(Consts.WIDTH)]
+                       for y in range(Consts.HEIGHT)]
+        self._garbage = [[Mino._ for x in range(Consts.WIDTH)]
+                         for y in range(Consts.GARBAGE_HEIGHT)]
 
-        mino = to_mino(operation)
-        return self.__field.can_fill_all(mino.positions())
+    def __getitem__(self, key: int|slice) -> List[Mino|List[Mino]]:
+        if isinstance(key, slice):
+            return [self[y] for y in self._to_field_range(key)]
+        elif isinstance(key, int):
+            return self._field[key] if key >= 0 else self._garbage[-key-1]
+        else:
+            raise KeyError(f'Unsupported indexing: {key}')
 
-    def can_lock(self, operation: Optional[Operation | Mino]) -> bool:
-        if operation is None:
-            return True
+    def __setitem__(self, key: int|slice, value: List[Mino|List[Mino]]):
+        if isinstance(key, slice):
+            range_ = self._to_field_range(slice)
+            if range_.step == 1:
+                if range_.start >= 0 and range_.stop >= 0:
+                    self._field[range_.start:range_.stop] = value
+                elif range_.start < 0 and range_.stop < 0:
+                    self._garbage[-range_.start-1:
+                                  -range_.stop-1] = reversed(value)
+                elif range_.start < 0 and range_.stop >= 0:
+                    self[-range_.start-1:0] = value[:-range_.start]
+                    self[0:range_.stop] = value[-range_.start:]
+            else:
+                for i, line in zip(range_, value, strict=True):
+                    self[i] = line
+        elif isinstance(key, int):
+            if key >= 0:
+                self._field[key] = value
+            else:
+                self._garbage[-key-1] = value
+        else:
+            raise KeyError(f'Unsupported indexing: {key}')
 
-        if not self.can_fill(operation):
-            return False
+    def at(self, x: int, y: int) -> Mino:
+        return self[y][x]
 
-        # Check on the ground
-        return not self.can_fill(Operation(operation.piece_type, operation.rotation, operation.x, operation.y-1))
+    def fill(self, x: int, y: int, mino: Mino):
+        self[y][x] = mino
 
-    class FillException(Exception):
-        pass
+    def is_placeable_at(self, x: int, y: int) -> bool:
+        return operation.is_inside() and self[y][x] is Mino._
 
-    def fill(self, operation: Optional[Operation | Mino], force: bool = False) -> Optional[Mino]:
+    def is_placeable(self, operation: Optional[Operation]) -> bool:
+        return (operation is None
+                or (operation.is_inside()
+                    and all(self[y][x] is Mino._
+                            for x, y in operation.shape())))
+
+    def is_grounded(self, operation: Optional[Operation]) -> bool:
+        return (operation is None
+                or (self.is_placeable(operation)
+                    and not self.is_placeable(operation.shifted(0, -1))))
+
+    def lock(self, operation: Optional[Operation], force: bool=False):
+        if operation is not None:
+            if not (force or self.is_placeable(operation)):
+                raise self.FieldException('Cannot lock piece on field')
+            for x, y in operation.shape():
+                self._field[y][x] = operation.mino
+
+    def drop(self, operation: Optional[Operation]) -> Optional[Operation]:
         if operation is None:
             return None
 
-        mino = to_mino(operation)
+        shifted_operation = None
+        for dy in range(1, Const.HEIGHT):
+            shifted_operation = operation.shifted(0, -dy)
+            if not self.is_placeable(shifted_operation):
+                shifted_operation.shift(0, 1)
+                break
+        else:
+            raise self.FieldException('Cannot drop piece on field')
 
-        if not (force or self.can_fill(mino)):
-            raise self.FillException('Cannot fill piece on field')
+        self.place(self.shifted_operation)
+        return shifted_operation
 
-        self.__field.fill_all(mino.positions(), parse_piece(mino.type))
+    def rise(self):
+        self[Consts.GARBAGE_HEIGHT:Consts.HEIGHT]\
+            = self[0:Consts.HEIGHT-Conts.GARBAGE_HEIGHT]
+        self[0:Consts.GARBAGE_HEIGHT] = self[-Consts.GARBAGE_LINE:0]
+        self[-Consts.GARBAGE_HEIGHT:0]\
+            = [self._empty_line() for y in range(Consts.GARBAGE_HEIGHT)]
 
-        return mino
+    def mirror(self, mirror_color=False):
+        for line in self:
+            line[:] = [mino.mirrored() if mirror_color else mino
+                       for mino in reversed(line)]
 
-    class PutException(Exception):
-        pass
+    def shfit_up(self, amount=1):
+        self[amount:] = self[0:Consts.HEIGHT-amount]
+        self[:amount] = [self._empty_line() for y in range(amount)]
 
-    def put(self, operation: Optional[Operation | Mino]) -> Optional[Mino]:
-        if operation is None:
-            return None
+    def shift_down(self, amount=1):
+        self[:Consts.HEIGHT-amount] = self[amount:]
+        self[Consts.HEIGHT-amount:]\
+            = [self._empty_line() for y in range(amount)]
 
-        mino = to_mino(operation)
+    def shift_left(self, amount=1, warp=False):
+        for line in self:
+            line[:] = (line[amount:]
+                       + (line[:amount] if warp else [Mino._]*amount))
 
-        while 0 <= mino.y:
-            if not self.can_lock(mino):
-                continue
+    def shift_right(self, amount=1, warp=False):
+        for line in self:
+            line[:] = ((line[-amount:] if warp else [Mino._]*amount)
+                       + line[:-amount])
 
-            mino.y -= 1
+    def is_lineclear_at(self, y):
+        return not Mino._ in self[y]
 
-            self.fill(mino)
+    def clear_line(self) -> int:
+        lines = []
+        n_lineclear = 0
+        for line in self:
+            if Mino._ in line:
+                lines.append(line)
+            else:
+                n_lineclear += 1
+        self._field = lines + [[Mino._ for x in range(Consts.WIDTH)]
+                               for y in n_lineclear]
 
-            return mino
+    def string(self, truncate: bool=True, garbage: bool=True,
+            separator: str='\n') -> str:
+        y0 = Consts.HEIGHT - 1
+        y_floor = -Consts.GARBAGE_HEIGHT if garbage else 0
+        if truncate:
+            while y0 >= y_floor and all(mino is Mino._ for mino in self[y0]):
+                y0 -= 1
 
-        raise self.PutException('Cannot put piece on field')
+        return separator.join(
+            [''.join(mino.name for mino in line)
+                     for line in self[y0:y_floor-1:-1]]
+        )
 
-    def clear_line(self):
-        self.__field.clear_line()
+    def __repr__(self):
+        return f'<Field:{self.string(truncate=False, separator=",")}>'
 
-    def at(self, x: int, y: int) -> str:
-        return parse_piece_name(self.__field.get_number_at(x, y))
-
-    def set(self, x: int, y: int, type: str):
-        self.__field.set_number_at(x, y, parse_piece(type))
-
-    def copy(self) -> Field:
-        return Field(self.__field.copy())
-
-    @dataclass
-    class Option():
-        reduced: Optional[bool] = None
-        separator: Optional[str] = None
-        garbage: Optional[bool] = None
-
-    def string(self, option: Option = Option()) -> str:
-        skip = option.reduced if option.reduced is not None else True
-        separator = option.separator if option.separator is not None else '\n'
-        min_y = -1 if option.garbage is None or option.garbage else 0
-
-        output = ''
-
-        for y in range (22, min_y - 1, -1):
-            line = ''
-            for x in range(10):
-                line += self.at(x, y)
-
-            if skip and line == '__________':
-                continue
-
-            skip = False
-            output += line
-            if y != min_y:
-                output += separator
-
-        return output
-
-def create_new_inner_field() -> InnerField:
-    return InnerField()
-
-def create_inner_field(field: Field) -> InnerField:
-    inner_field = InnerField()
-    for y in range(-1, FieldConstants.HEIGHT):
-        for x in range(0,  FieldConstants.WIDTH):
-            at = field.at(x, y)
-            inner_field.set_number_at(x, y, parse_piece(at))
-
-    return inner_field
+    def __str__(self):
+        return self.string()
