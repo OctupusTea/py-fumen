@@ -38,5 +38,5 @@ class FumenBuffer(deque):
             value, remainder = divmod(value, self.TABLE_LENGTH)
             self.append(remainder)
 
-    def to_string(self) -> str:
+    def __repr__(self) -> str:
         return ''.join(self.ENCODING_TABLE[value] for value in self)

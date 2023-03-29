@@ -12,6 +12,26 @@ class FieldException(Exception):
     pass
 
 class Field():
+    _EMPTY_LINE = [Mino._] * Consts.WIDTH
+
+    @staticmethod
+    def _empty_lines(height: int) -> List[List[Mino]]:
+        return [[Mino._] * Consts.WIDTH for y in range(height)]
+
+    @staticmethod
+    def _field_init(self, height: int,
+            field_:Optional[str|List[List[Mino]]=None]) -> List[List[Mino]]:
+        if field_:
+            if isinstance(field_, str):
+                return [[Mino.parse_name(mino) for mino in line]
+                        for line in field_.splitlines()]
+            elif isinstance(field_, List[List[Mino]]):
+                return [line[:] for line in field_]
+            else:
+                raise TypeError(f'Unsupported Field initialisation: {field_}')
+        else:
+            return self._empty_lines(height)
+
     @staticmethod
     def _to_field_range(slice_: slice=slice(None, None, None)) -> Generator:
         return range(
@@ -20,15 +40,10 @@ class Field():
             1 if slice_.step is None else slice_.step
         )
 
-    @staticmethod
-    def _empty_line() -> List[Mino]:
-        return [Mino._] * Consts.WIDTH
-
-    def __init__(self):
-        self._field = [[Mino._ for x in range(Consts.WIDTH)]
-                       for y in range(Consts.HEIGHT)]
-        self._garbage = [[Mino._ for x in range(Consts.WIDTH)]
-                         for y in range(Consts.GARBAGE_HEIGHT)]
+    def __init__(self, field_: Optional[str|List[List[Mino]]],
+            garbage: Optional[str|List[List[Mino]]]):
+        self._field = self._field_init(Consts.HEIGHT, field_)
+        self._garbage = self._field_init(Consts.GARBAGE_HEIGHT, garbage)
 
     def __getitem__(self, key: int|slice) -> List[Mino|List[Mino]]:
         if isinstance(key, slice):
@@ -36,7 +51,7 @@ class Field():
         elif isinstance(key, int):
             return self._field[key] if key >= 0 else self._garbage[-key-1]
         else:
-            raise KeyError(f'Unsupported indexing: {key}')
+            raise TypeError(f'Unsupported indexing: {key}')
 
     def __setitem__(self, key: int|slice, value: List[Mino|List[Mino]]):
         if isinstance(key, slice):
@@ -59,7 +74,10 @@ class Field():
             else:
                 self._garbage[-key-1] = value
         else:
-            raise KeyError(f'Unsupported indexing: {key}')
+            raise TypeError(f'Unsupported indexing: {key}')
+
+    def copy(self) -> Field:
+        return Field(self._field, self._garbage)
 
     def at(self, x: int, y: int) -> Mino:
         return self[y][x]
@@ -109,7 +127,7 @@ class Field():
             = self[0:Consts.HEIGHT-Conts.GARBAGE_HEIGHT]
         self[0:Consts.GARBAGE_HEIGHT] = self[-Consts.GARBAGE_LINE:0]
         self[-Consts.GARBAGE_HEIGHT:0]\
-            = [self._empty_line() for y in range(Consts.GARBAGE_HEIGHT)]
+            = [self.EMPTY_LINE for y in range(Consts.GARBAGE_HEIGHT)]
 
     def mirror(self, mirror_color=False):
         for line in self:
@@ -149,18 +167,44 @@ class Field():
         self._field = lines + [[Mino._ for x in range(Consts.WIDTH)]
                                for y in n_lineclear]
 
-    def string(self, truncate: bool=True, garbage: bool=True,
-            separator: str='\n') -> str:
-        y0 = Consts.HEIGHT - 1
-        y_floor = -Consts.GARBAGE_HEIGHT if garbage else 0
-        if truncate:
-            while y0 >= y_floor and all(mino is Mino._ for mino in self[y0]):
-                y0 -= 1
+    def _to_string(self, key: int|slice=None, truncated:bool=True,
+            separator:str='\n', is_garbage: bool=False) -> str:
+        if key is None:
+            key = slice(None)
+        elif isinstance(key, int):
+            key = slice(int-1, int) if is_garbage else slice(int, int+1)
 
-        return separator.join(
-            [''.join(mino.name for mino in line)
-                     for line in self[y0:y_floor-1:-1]]
-        )
+        if isinstance(key, slice):
+            y_end = Consts.GARBAGE_HEIGHT if is_garbage else Consts.HEIGHT - 1
+            field_ = self._garbage if is_garbage else self._field
+            if truncated:
+                while y_end >= 0 and field_[y_end] == self._EMPTY_LINE:
+                    y0 -= 1
+            slice_ = slice(:y_end) if is_garbage else slice(y_end, -1, -1)
+            return separator.join(
+                [''.join(mino.name for mino in line)
+                 for line in field_[slice_]
+            )
+        else:
+            raise TypeError(f'Unsupported indexing: {key}')
+
+    def field_string(self, key: int|slice=None, truncated: bool=True,
+            separator: str='\n') -> str:
+        return self._to_string(key, truncated, separator, is_garbage=False)
+
+    def garbage_string(self, key: int|slice=None, truncate: bool=True,
+            separator: str='\n') -> str:
+        return self._to_string(key, truncated, separator, is_garbage=True)
+
+    def string(self, truncated: bool=True, with_garbage: bool=True,
+            separator: str='\n') -> str:
+        if with_garbage:
+            return separator.join([
+                self.field_string(None, truncated, separator),
+                self.garbage_string(None, truncated, separator),
+            ])
+        else:
+            return self.field_string(None, truncated, separator)
 
     def __repr__(self):
         return f'<Field:{self.string(truncate=False, separator=",")}>'
