@@ -14,8 +14,8 @@ class Action():
     comment: bool
     lock: bool
 
-class ActionDecoder() :
-    PIECE_OFFSET = {
+class ActionCodec() :
+    _DECODING_OFFSET = {
         Mino.I: {
             Rotation.REVERSE: (1, 0),
             Rotation.LEFT: (0, -1),
@@ -35,38 +35,7 @@ class ActionDecoder() :
         },
     }
 
-    @classmethod
-    def decode_coords(cls, consts, encoded_coords, mino, rotation):
-        dx, dy = cls.PIECE_OFFSET.get(mino, {}).get(rotation, (0, 0))
-        return (dx + encoded_coords % consts.WIDTH,
-                dy + consts.HEIGHT - encoded_coords // consts.WIDTH - 1)
-
-    @classmethod
-    def decode(cls, consts, encoded_action):
-        q, r = divmod(encoded_action, 8)
-        mino = Mino(r)
-        q, r = divmod(q, 4)
-        rotation = Rotation(r)
-        q, r = divmod(q, consts.TOTAL_BLOCK_COUNT)
-        x, y = cls.decode_coords(consts, r, mino, rotation)
-        q, r = divmod(q, 2)
-        rise = bool(r)
-        q, r = divmod(q, 2)
-        mirror = bool(r)
-        q, r = divmod(q, 2)
-        colorize = bool(r)
-        q, r = divmod(q, 2)
-        comment = bool(r)
-        q, r = divmod(q, 2)
-        lock = not bool(r)
-
-        return Action(operation=Operation(mino=mino, rotation=rotation,
-                                          x=x, y=y),
-                      rise=rise, mirror=mirror, colorize=colorize,
-                      comment=comment, lock=lock)
-
-class ActionEncoder():
-    PIECE_OFFSET = {
+    _ENCODING_OFFSET = {
         Mino.I: {
             Rotation.REVERSE: (-1, 0),
             Rotation.LEFT: (0, 1),
@@ -86,16 +55,46 @@ class ActionEncoder():
         },
     }
 
+    @classmethod
+    def _decode_coords(cls, consts, encoded_coords, mino, rotation):
+        dx, dy = cls._DECODING_OFFSET.get(mino, {}).get(rotation, (0, 0))
+        return (dx + encoded_coords % consts.WIDTH,
+                dy + consts.HEIGHT - encoded_coords // consts.WIDTH - 1)
+
+    @classmethod
+    def decode(cls, consts, encoded_action):
+        q, r = divmod(encoded_action, 8)
+        mino = Mino(r)
+        q, r = divmod(q, 4)
+        rotation = Rotation(r)
+        q, r = divmod(q, consts.TOTAL_BLOCK_COUNT)
+        x, y = cls._decode_coords(consts, r, mino, rotation)
+        q, r = divmod(q, 2)
+        rise = bool(r)
+        q, r = divmod(q, 2)
+        mirror = bool(r)
+        q, r = divmod(q, 2)
+        colorize = bool(r)
+        q, r = divmod(q, 2)
+        comment = bool(r)
+        q, r = divmod(q, 2)
+        lock = not bool(r)
+
+        return Action(operation=Operation(mino=mino, rotation=rotation,
+                                          x=x, y=y),
+                      rise=rise, mirror=mirror, colorize=colorize,
+                      comment=comment, lock=lock)
+
     @staticmethod
-    def encode_rotation(operation):
+    def _encode_rotation(operation):
         if operation.mino.is_colored():
             return operation.rotation.value
         else:
             return 0
 
     @classmethod
-    def encode_coords(cls, consts, operation):
-        dx, dy = cls.PIECE_OFFSET.get(
+    def _encode_coords(cls, consts, operation):
+        dx, dy = cls._ENCODING_OFFSET.get(
             operation.mino, {}
         ).get(operation.rotation, (0, 0))
         x, y = ((dx + operation.x, dy + operation.y)
@@ -114,9 +113,9 @@ class ActionEncoder():
         encoded_action *= 2
         encoded_action += bool(action.rise)
         encoded_action *= consts.TOTAL_BLOCK_COUNT
-        encoded_action += cls.encode_coords(consts, action.operation)
+        encoded_action += cls._encode_coords(consts, action.operation)
         encoded_action *= 4
-        encoded_action += cls.encode_rotation(action.operation)
+        encoded_action += cls._encode_rotation(action.operation)
         encoded_action *= 8
         encoded_action += action.operation.mino
 

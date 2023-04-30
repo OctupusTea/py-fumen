@@ -6,7 +6,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Deque
 
-from .action import ActionDecoder, ActionEncoder
+from .action import Action, ActionCodec
 from .comment import CommentCodec
 from .constant import FieldConstants, FumenStringConstants
 from .field import Field
@@ -103,7 +103,7 @@ class FumenBufferReader(FumenBuffer):
             return self._field_previous, True
 
     def read_action(self):
-        return ActionDecoder.decode(self._consts, self.poll(3))
+        return ActionCodec.decode(self._consts, self.poll(3))
 
     def read_comment(self):
         length = self.poll(2)
@@ -168,7 +168,7 @@ class FumenBufferWriter(FumenBuffer):
 
     def write_action(self, action):
         self._field_repeat_buffer.push(
-            ActionEncoder.encode(self._consts, action), 3)
+            ActionCodec.encode(self._consts, action), 3)
         self._field_previous.apply_action(action)
 
     def write_comment(self, comment, prev_comment):

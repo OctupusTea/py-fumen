@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from .action import Action
 from .constant import FieldConstants as Consts
 from .operation import Mino, Rotation, Operation
 
@@ -22,7 +21,7 @@ class Field:
         if field:
             if isinstance(field, str):
                 lines = [[Mino.parse_name(mino) for mino in line]
-                         for line in field.splitlines()]
+                         for line in field.splitlines()[::-1]]
             else:
                 lines = [line[:] for line in field]
             lines[-1] += [Mino._ for x in range(Consts.WIDTH-len(lines[-1]))]

@@ -1,53 +1,73 @@
-# py-fumen
-Python implementation of knewjade's fumen
+# py-fumen-py
 
-# Installation 
-Enter `pip install py-fumen` in terminal / cmd if you have python3 already.
+More Python-ish Python implementation of [Knewjade's tetris-fumen](https://github.com/knewjade/tetris-fumen)
+Original project: [hsohliyt105's py-fumen](https://github.com/hsohliyt105/py-fumen)
 
-# Uses
-The usage of this package is very similar to the original fumen package.
-
-## Decode
-```
-from py_fumen.decoder import decode
-
-decode_pages = decode("v115@vhHJEJWPJyKJz/I1QJUNJvIJAgH")
-
-for page in decode_pages:
-    print(page.get_field().string())
+## Usage
+```python
+from py_fumen_py import *
 ```
 
-## Encode
+### Module
+
+> **`bold names`** are automatically imported with `from py_fumen_py import *`
+
+|Name|Description|Importable Names|
+|:-|:-|:-|
+|`action`|Codec for action in a fumen string|`Action`, `ActionCodec`|
+|`comment`|Codec for comment in a fumen string |`CommentCodec`|
+|`constant`|Constants used in the project|**`FieldConstants`**, `FieldConstants110`, **`FumenStringConstants`**|
+|`field`|Playing field object|**`Field`**|
+|`fumen_buffer`|Buffer objects for saved data|`FumenBuffer`, `FumenBufferReader`, `FumenBufferWriter`|
+|`fumen_codec`|The Fumen codec|**`decode`**, **`encode`**|
+|`js_escape`|`escape()` ported from JavaScript|`escape`, `unescape`, `escaped_compare`|
+|`operation`|Tetrimino placement object|**`Mino`**, **` Rotation`**, **`Operation`**|
+|`page`|Page object|**`Flags`**, **`Refs`**, **`Page`**|
+|`quiz`|Quiz object|`Quiz`|
+
+### Example
+
+- Decoding
+```python
+from py_fumen_py import *
+
+pages = decode('v115@9gQ4EeAtBewhR4CeBtBewhg0Q4CeAtglRpwhi0Aeil?RpwhJeAgWSANxiSASowNE1oo2AzyBUAT5AAA')
+
+for i, page in enumerate(pages):
+	print(i)
+    print(page.field)
 ```
-from py_fumen.encoder import encode
-from py_fumen.field import Field, create_inner_field
-from py_fumen.page import Page
 
-pages = []
-pages.append(
-    Page(field=create_inner_field(Field.create(
-        'LLL_____SS' +
-        'LOO____SST' +
-        'JOO___ZZTT' +
-        'JJJ____ZZT',
-        '__________',
-    )),
-    comment='Perfect Clear Opener'))
+- Encoding
+```
+from py_fumen_py import *
 
+field = Field(
+	field='\n'.join([
+		'S_____Z__I',
+		'SS___ZZ__I',
+		'JS___ZLOOI',
+		'JJJ_LLLOOI',
+	]),
+	garbage='__________'
+)
+pages = [Page(
+	field=field,
+	operation=None,
+	comment='MKO you say?',
+	flags=Flags(),
+	refs=Refs())
+]
 print(encode(pages))
 ```
 
-# Difference between the knewjade's fumen
-Some of functions and variables are non-private because of the disparity between python and typescript (e.g. quiz variable in the Quiz class).
+## Difference Compared with `tetris-fumen` and `py-fumen`
 
-Function and varibale names are changed with python naming convention.
-
-create_inner_field function and create_new_inner_field are moved to field.py because of cross importing issue.
-
-page.py is created for better OOP.
-
-js_escape.py is added to imitate javascript's escape/unescape.
-
-buffer.ts is renamed to fumen_buffer.py and Buffer object to FumenBuffer.
-
-getters and setters are changed into methods (e.g. Page.get_field()). 
+- Action encoding and decoding are moved to `action`
+- Comment encoding and decoding are moved to `comment`
+- Added `FieldConstants110` to `constant` to accomodate for Fumen version `110`
+- `decoder` and `encoder` are combined into one `fumen-codec` module
+- `field` and `inner_field` are combined into one `field` module
+- Action, comment and field reading/writing are moved to `fumen_buffer`
+- Placement tetrimino `enum` objects are moved to `operation`
+- `quiz` works completely differently (based on [](fumen.zui.jp) instead of `tetris-fumen`)

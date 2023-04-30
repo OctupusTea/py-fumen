@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "py_fumen_py"
+version = "0.0.1"
+authors = [
+	{ name="Octupus Tea" },
+]
+description = "Python implementation of the JavaScript package 'tetris-fumen'"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+	"Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependecies = [
+]
+
+[project.urls]
+"Source" = "https://github.com/OctupusTea/py-fumen-py"
