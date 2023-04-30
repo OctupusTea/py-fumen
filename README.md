@@ -1,6 +1,7 @@
 # py-fumen-py
 
 More Python-ish Python implementation of [Knewjade's tetris-fumen](https://github.com/knewjade/tetris-fumen)
+
 Original project: [hsohliyt105's py-fumen](https://github.com/hsohliyt105/py-fumen)
 
 ## Usage
@@ -35,11 +36,11 @@ pages = decode('v115@9gQ4EeAtBewhR4CeBtBewhg0Q4CeAtglRpwhi0Aeil?RpwhJeAgWSANxiSA
 
 for i, page in enumerate(pages):
 	print(i)
-    print(page.field)
+	print(page.field)
 ```
 
 - Encoding
-```
+```python
 from py_fumen_py import *
 
 field = Field(
