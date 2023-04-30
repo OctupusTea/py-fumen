@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 from .field import Field
 from .operation import Operation
@@ -24,6 +24,10 @@ class Page():
     field: Optional[Field]
     operation: Optional[Operation]
     comment: Optional[str]
-    flag: Optional[Flags]
+    flags: Optional[Flags]
     refs: Optional[Refs]
 
+    def __repr__(self):
+        return (f'{{field:\n{self.field}, operation: {self.operation}, '
+                f'comment:{self.comment}, flags: {self.flags}, '
+                f'refs: {self.refs}}}')

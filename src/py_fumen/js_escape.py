@@ -2,10 +2,11 @@
 
 import re
 
-RESERVED_CHARS = ("0123456789QWERTYUIOPASDFGHJKLZXCVBNM"
+RESERVING_CHARS = ("0123456789QWERTYUIOPASDFGHJKLZXCVBNM"
                   "qwertyuiopasdfghjklzxcvbnm@*_+-./")
 
-def escape(string: str):
+def escape(string):
+    string = '' if string is None else string
     result = ''
     for char in string:
         if char in RESERVING_CHARS:
@@ -13,12 +14,15 @@ def escape(string: str):
         else:
             char_ord = ord(char)
             result += ('%{0:02X}'.format(char_ord) if char_ord < 256
-                       else result += '%u{0:04X}'.format(char_ord))
+                       else '%u{0:04X}'.format(char_ord))
     return result
 
-def unescape(string: str):
+def unescape(string):
     return re.sub(r'%u([a-fA-F0-9]{4})|%([a-fA-F0-9]{2})', _parse, string)
 
-def _parse(match: re.Match):
+def _parse(match):
     hex_4, hex_2 = match.groups()
     return chr(int(hex_4 if hex_4 else hex_2, 16))
+
+def escaped_compare(a, b, length=None):
+    return escape(a)[:length] == escape(b)[:length]

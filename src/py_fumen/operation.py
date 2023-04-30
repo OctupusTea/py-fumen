@@ -5,10 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import IntEnum
 
-from constants import FieldConstants as Consts
-
-class MinoException(Exception):
-    pass
+from .constant import FieldConstants as Consts
 
 class Mino(IntEnum):
     _ = 0
@@ -23,20 +20,26 @@ class Mino(IntEnum):
     X = 8
     GRAY = 8
 
-    @classmethod
-    def parse_name(cls, name: str) -> Mino:
+    @staticmethod
+    def parse_name(name):
     # parse_name() is added to support parsing of ' ' and lowercase names.
         if name == ' ':
             return Mino._
         try:
             return Mino[name.upper()]
         except:
-            raise MinoException(f'Unknown mino name: {name}')
+            raise ValueError(f'Unknown mino name: {name}') from None
 
-    def is_colored(self) -> bool:
+    def is_colored(self):
         return self is not Mino._ and self is not Mino.X
 
-    def mirrored(self) -> Mino:
+    def shifted(self, amount, strict=False):
+        if strict:
+            return Mino(self+amount)
+        else:
+            return Mino((self+amount) % len(Mino))
+
+    def mirrored(self):
         return {
             Mino._: Mino._,
             Mino.I: Mino.I,
@@ -49,21 +52,18 @@ class Mino(IntEnum):
             Mino.X: Mino.X,
         }.get(self)
 
-class RotationException(Exception):
-    pass
-
 class Rotation(IntEnum):
-    SPAWN = 0
+    REVERSE = 0
     RIGHT = 1
     R = 1
     CW = 1
-    REVERSE = 2
+    SPAWN = 2
     LEFT = 3
     L = 3
     CCW = 3
 
-    @classmethod
-    def parse_name(cls, name: str) -> Rotation:
+    @staticmethod
+    def parse_name(name):
     # parse_name() is added to support parsing of numeric and lowercase names.
         rotation = {
             '0': Rotation.SPAWN,
@@ -74,13 +74,19 @@ class Rotation(IntEnum):
             return rotation
         try:
             return Rotation[name.upper()]
-        except KeyError:
-            raise RotationException(f'Unknown rotation: {repr(rotation)}')
+        except:
+            raise KeyError(f'Unknown rotation: {rotation}')
 
-    def short_name(self) -> str:
-        return ['0', 'R', '2', 'L'][self]
+    def short_name(self):
+        return ['2', 'L', '0', 'R'][self]
 
-    def mirrored(self) -> Rotation:
+    def shifted(self, amount, strict=False):
+        if strict:
+            return Rotation(self+amount)
+        else:
+            return Rotation((self+amount) % len(Rotation))
+
+    def mirrored(self):
         return {
             Rotation.SPAWN: Rotation.SPAWN,
             Rotation.RIGHT: Rotation.LEFT,
@@ -129,21 +135,21 @@ class Operation():
     y: int
 
     @classmethod
-    def shape_at(cls, mino: Mino, rotation: Rotation, x: int=0, y: int=0):
+    def shape_at(cls, mino, rotation, x=0, y=0):
         return [[x+dx, y+dy] for dx, dy
                 in cls.SHAPES.get(mino, {}).get(rotation, (0, 0))]
 
     @classmethod
-    def is_inside_at(cls, mino:Mino, rotation:Rotation, x: int, y:int):
+    def is_inside_at(cls, mino, rotation, x, y):
         return all(0 <= x < Consts.WIDTH
                    and 0 <= y < Consts.HEIGHT
-                   for x, y in self.shape_at(mino, rotation, x, y))
+                   for x, y in cls.shape_at(mino, rotation, x, y))
 
     def shift(self, dx, dy):
         self.x += dx
         self.y += dy
 
-    def shifted(self, dx, dy) -> Operation:
+    def shifted(self, dx, dy):
         return Operation(self.mino, self.rotation, self.x+dx, self.y+dy)
 
     def mirror(self):
@@ -153,7 +159,7 @@ class Operation():
         self.x = mirrored.x
         self.y = mirrored.y
 
-    def mirrored(self) -> Operation:
+    def mirrored(self):
         mino = self.mino.mirrored()
         if mino is Mino.I or self.Mino is Mino.O:
             rotation = self.rotation

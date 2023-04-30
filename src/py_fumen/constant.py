@@ -1,23 +1,24 @@
 # -*- coding: utf-8 -*-
 
-class FieldConstants():
+class FieldConstants:
+    GARBAGE_HEIGHT = 1
     WIDTH = 10
     HEIGHT = 23
-    GARBAGE_HEIGHT = 1
-    BLOCK_COUNT = HEIGHT * WIDTH
+    BLOCK_COUNT = WIDTH * HEIGHT
     TOTAL_HEIGHT = HEIGHT + GARBAGE_HEIGHT
     TOTAL_BLOCK_COUNT = TOTAL_HEIGHT * WIDTH
 
-class FieldConstants110(FieldConstants):
+class FieldConstants110:
+    GARBAGE_HEIGHT = 1
     WIDTH = 10
     HEIGHT = 21
-    GARBAGE_HEIGHT = 1
-    BLOCK_COUNT = HEIGHT * WIDTH
+    BLOCK_COUNT = WIDTH * HEIGHT
     TOTAL_HEIGHT = HEIGHT + GARBAGE_HEIGHT
     TOTAL_BLOCK_COUNT = TOTAL_HEIGHT * WIDTH
 
-class FumenStringConstants():
+class FumenStringConstants:
     PREFIX = "v"
     VERSION = "115"
     SUFFIX = "@"
     VERSION_INFO = PREFIX + VERSION + SUFFIX
+    BLOCK_SIZE = 47

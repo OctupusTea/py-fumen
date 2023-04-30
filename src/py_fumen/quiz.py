@@ -1,66 +1,93 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import annotations
-
-from enum import Enum
-import re
-from typing import List, Optional
-
-from .operation import Mino
-
-class _QuizOperation(Enum):
-    DIRECT = 'direct'
-    STOCK = 'stock'
-    SWAP = 'swap'
-
-class QuizException(Exception):
-    pass
+import copy
 
 class Quiz:
     @staticmethod
-    def create(hold: str='', active:str='', nexts: str='') -> Quiz:
-        return Quiz(f'#Q=[{hold}]({active}){nexts}')
+    def parse_comment(comment):
+        if isinstance(comment, str):
+            if not comment.startswith('#Q='):
+                return False, None, None, None, comment
 
-    @staticmethod
-    def is_quiz_comment(comment: str) -> bool:
-        return re.search('^#Q=\[[TIOSZJL]?]\([TIOSZJL]?\)[TIOSZJL]*;?.*$', comment)
+            try:
+                quiz_string, residue = comment.split(';', maxsplit=1)
+            except:
+                quiz_string = comment
+                residue = ''
+            quiz_string = ''.join(ch for ch in comment if ch in 'IOLZTJS()[]')
 
-    def __init__(self, comment: str):
-        if not self.is_quiz_comment(comment):
-            raise QuizException(f'Unexpected quiz: {comment}')
+            hold = quiz_string.split('[', maxsplit=1)[1].split(']')[0]
+            active = quiz_string.split('(', maxsplit=1)[1].split(')')[0]
+            nexts = ''.join(ch for ch in quiz_string.split(')', maxsplit=1)[1]
+                            if ch in 'IOLZTJS')
 
-        self._hold_piece = comment.split('[', maxsplit=1)[1].split(']', maxsplit=1)[0]
-        self._active_piece = comment.split('(', maxsplit=1)[1].split(')', maxsplit=1)[0]
-        self._next_pieces = comment.split(')', maxsplit=1)[1].split(';', maxsplit=1)[0]
-        self._comment = comment.split(';', maxsplit=1)[1] if ';' in comment else ''
-
-    def _next_piece(self) -> str:
-        return self._next_pieces[0:1]
-
-    def _next_residue(self) -> str:
-        if len(self._next_pieces) > 1:
-            return ';'.join(self._next_pieces[1:], self._comment)
+            return True, hold, active, nexts, residue
         else:
-            return self._comment
+            raise TypeError('Unsupported comment type')
 
-    def next_quiz(self, used_piece: Mino) -> Quiz:
-        if used_piece.name == self._active_piece:
-            return Quiz.create(self._hold_piece, self._next_piece(),
-                               self._next_residue())
-        if self._hold_piece:
-            if used_piece.name == self._hold_piece:
-                return Quiz.create(used_piece.name, self._next_piece(),
-                                   self._next_residue())
-            elif not self._active_piece and used_piece.name == self._next_piece():
-                return Quiz.create(self._hold_piece, self._next_residue()[0:1],
-                                   self._next_residue()[1:])
-        elif used_piece.name == self._next_piece():
-            return Quiz.create(used_piece.name, self._next_residue()[0:1],
-                               self._next_residue()[1:])
+    def __init__(self, comment):
+        if isinstance(comment, str):
+            (self._is_valid, self._hold, self._active, self._nexts,
+                self._residue) = self.parse_comment(comment)
+        else:
+            raise TypeError('Unsupported comment type')
 
-        raise QuizException(f'Unexpected hold piece: {self}')
+    def _split_nexts(self, split_index=1):
+        # split_index -= int(self._nexts[0:1] == ';')
+        return (self._nexts[split_index-1:split_index],
+                self._nexts[split_index:])
 
-    def __str__(self) -> str:
-        return ''.join([f'#Q[{self._hold_piece}]({self._active_piece})',
-                        f'{self._next_pieces}',
-                        f';{self._comment}' if self._comment else ''])
+    def copy(self):
+        return copy.copy(self)
+
+    def refresh(self):
+        (self._is_valid, self._hold, self._active, self._nexts,
+            self._residue) = self.parse_comment(str(self))
+
+    def step(self, mino):
+        if self._is_valid and mino.is_colored():
+            if mino.name == self._active:
+                self._active, self._nexts = self._split_nexts()
+            elif mino.name == self._hold:
+                self._hold, self._active, self._nexts = (
+                    self._active, *self._split_nexts())
+            elif mino.name == self._nexts[0]:
+                if not self._hold:
+                    self._hold, self._active, self._nexts = (
+                        self._active, *self._split_nexts(2))
+                elif not self._active:
+                    self._active, self._nexts = self._split_nexts(2)
+            self.refresh()
+
+    @property
+    def is_valid(self):
+        return self._is_valid
+
+    @property
+    def hold(self):
+        return self._hold
+
+    @property
+    def active(self):
+        return self._active
+
+    @property
+    def nexts(self):
+        return self._nexts
+
+    @property
+    def residue(self):
+        return self._residue
+
+    def __len__(self):
+        return len(self._hold) + len(self._active) + len(self._nexts)
+
+    def __bool__(self):
+        return True if len(self) else self.parse_comment(self._residue)[0]
+
+    def __repr__(self):
+        if self._active:
+            return ''.join([f'#Q=[{self._hold}]({self._active}){self._nexts}',
+                            f';{self._residue}' if self._residue else ''])
+        else:
+            return self._residue
