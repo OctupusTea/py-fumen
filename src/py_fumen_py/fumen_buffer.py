@@ -156,6 +156,7 @@ class FumenBufferWriter(FumenBuffer):
             self._write_field_diff(prev_diff, length)
             self.move_field_buffer()
             self._field_repeat_count = -1
+            self._field_previous = field.copy()
         elif 0 <= self._field_repeat_count < self.TABLE_LENGTH - 1:
             self[-1] += 1
             self._field_repeat_count += 1
@@ -165,7 +166,6 @@ class FumenBufferWriter(FumenBuffer):
             self._field_repeat_buffer.push(self._field_repeat_count, 1)
             self.move_field_buffer()
 
-        self._field_previous = field.copy()
 
     def write_action(self, action):
         self._field_repeat_buffer.push(
