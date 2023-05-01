@@ -137,6 +137,7 @@ class FumenBufferWriter(FumenBuffer):
     def write_field(self, field):
         if field is None:
             diff = 0
+            prev_diff = 0
             length = self._consts.TOTAL_BLOCK_COUNT - 1
         else:
             prev_diff = self._field_diff(field, 0, 0)
