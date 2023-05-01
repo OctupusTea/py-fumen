@@ -18,6 +18,7 @@ class Mino(IntEnum):
     J = 6
     S = 7
     X = 8
+    G = 8
     GRAY = 8
 
     @staticmethod

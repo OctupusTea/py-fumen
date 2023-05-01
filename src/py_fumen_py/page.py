@@ -21,13 +21,14 @@ class Refs():
 
 @dataclass
 class Page():
-    field: Optional[Field]
-    operation: Optional[Operation]
-    comment: Optional[str]
-    flags: Optional[Flags]
-    refs: Optional[Refs]
+    field: Optional[Field] = None
+    operation: Optional[Operation] = None
+    comment: Optional[str] = None
+    flags: Optional[Flags] = None
+    refs: Optional[Refs] = None
 
     def __repr__(self):
-        return (f'{{field:\n{self.field}, operation: {self.operation}, '
-                f'comment:{self.comment}, flags: {self.flags}, '
-                f'refs: {self.refs}}}')
+        field_separator = '\n' if self.field else ' '
+        return (f'{{field:{field_separator}{self.field}, '
+                f'operation: {self.operation}, comment: {self.comment}, '
+                f'flags: {self.flags}, refs: {self.refs}}}')

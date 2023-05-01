@@ -20,10 +20,13 @@ class Field:
     def _field_init(cls, height, field=None):
         if field:
             if isinstance(field, str):
-                lines = [[Mino.parse_name(mino) for mino in line]
-                         for line in field.splitlines()[::-1]]
-            else:
+                field = field.splitlines()
+
+            if isinstance(field[0], list):
                 lines = [line[:] for line in field]
+            elif isinstance(field[0], str):
+                lines = [[Mino.parse_name(mino) for mino in line]
+                        for line in field[::-1]]
             lines[-1] += [Mino._ for x in range(Consts.WIDTH-len(lines[-1]))]
             lines += cls._empty_lines(height-len(lines))
             return lines
@@ -142,7 +145,7 @@ class Field:
                        + line[:-amount])
 
     def is_lineclear_at(self, y):
-        return not Mino._ in self[y]
+        return Mino._ not in self[y]
 
     def clear_line(self):
         lines = []
@@ -152,8 +155,7 @@ class Field:
                 lines.append(line)
             else:
                 n_lineclear += 1
-        self._field = lines + [[Mino._ for x in range(Consts.WIDTH)]
-                               for y in range(n_lineclear)]
+        self._field = lines + self._empty_lines(n_lineclear)
         return n_lineclear
 
     def apply_action(self, action):
@@ -166,13 +168,18 @@ class Field:
             if action.mirror:
                 self.mirror()
 
+    def height(self):
+        height = Consts.HEIGHT
+        while (height > 0
+                and all(mino is Mino._ for mino in self[height - 1])):
+            height -= 1
+        return height
+
     def _string(self, start=None, stop=None, truncated=True, separator='\n'):
         start = -Consts.GARBAGE_HEIGHT if start is None else start
         stop = Consts.HEIGHT if stop is None else stop
         if truncated:
-            while (stop > start
-                    and all(mino is Mino._ for mino in self[stop-1])):
-                stop -= 1
+            stop = min(stop, self.height())
         return separator.join(
             reversed([''.join(mino.name for mino in line)
                       for line in self[start:stop]])
