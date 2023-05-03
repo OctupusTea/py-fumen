@@ -13,18 +13,25 @@ from .field import Field
 from .js_escape import escape, unescape
 
 class FumenBuffer(deque):
+    """The buffer for fumen data.
+    deque is used for faster element removal from the front.
+    """
     ENCODING_TABLE = ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'
                       'abcdefghijklmnopqrstuvwxyz0123456789+/')
     DECODING_TABLE = {char: i for i, char in enumerate(ENCODING_TABLE)}
     TABLE_LENGTH = len(ENCODING_TABLE)
 
     def __init__(self, data=''):
+        """Create a FumenBuffer object with the given data."""
         try:
             super().__init__(self.DECODING_TABLE[char] for char in data)
         except KeyError as e:
             raise ValueError(f'Unsupported fumen string character: {e}') from None
 
     def poll(self, poll_length):
+        """Return the value represented by poll_length symbols at the front.
+        The symbol ordering is big-endian.
+        """
         poll_stack = []
         try:
             for i in range(poll_length):
@@ -39,12 +46,21 @@ class FumenBuffer(deque):
         return value
 
     def push(self, value, push_length=1):
+        """Push the value with push_length symbols representing it.
+        The symbol ordering is big-endian.
+        """
         for i in range(push_length):
             value, remainder = divmod(value, self.TABLE_LENGTH)
             self.append(remainder)
 
     def fumen_string(self, prefix=FumenStringConstants.VERSION_INFO,
             block_size=FumenStringConstants.BLOCK_SIZE):
+        """Return the stored symbol(s) as a fumen string.
+        Keyword arguments:
+        prefix: fumen string previx. (default: the deafult VERSION_INFO 'v115')
+        block_size: Insert a '?' every block_size of characters. (default: the
+            default BLOCK_SIZE 47)
+        """
         string = ''.join([prefix, repr(self)])
         if len(string) < block_size:
             return string
@@ -53,6 +69,7 @@ class FumenBuffer(deque):
                             for i in range(0, len(string), block_size))
 
     def __iadd__(self, other):
+        """Append another FumenBuffer at the back of self."""
         for item in other:
             self.append(item)
         return self
@@ -65,6 +82,7 @@ class FumenBuffer(deque):
 
 class FumenBufferReader(FumenBuffer):
     def __init__(self, consts, data=''):
+        """Create a FumenBufferReader object with given data."""
         super().__init__(data)
         self._consts = consts
         self._field_previous = Field()
@@ -72,6 +90,7 @@ class FumenBufferReader(FumenBuffer):
         self._comment_previous = None
 
     def _apply_field_diff(self, index, diff, length):
+        # Apply the decoded field diff on the stored field.
         if diff != 8:
             diff -= 8
             for i in range(index, index+length+1):
@@ -82,6 +101,9 @@ class FumenBufferReader(FumenBuffer):
                 )
 
     def read_field(self):
+        """Read one playing field from the data.
+        Return a new or repeated Field object.
+        """
         if self._field_repeat_count > 0:
             self._field_repeat_count -= 1
             return self._field_previous, False
@@ -103,9 +125,11 @@ class FumenBufferReader(FumenBuffer):
             return self._field_previous, True
 
     def read_action(self):
+        """Read one Action object from the data."""
         return ActionCodec.decode(self._consts, self.poll(3))
 
     def read_comment(self):
+        """Read one variable-lenght comment string from the data."""
         length = self.poll(2)
         comment = unescape(CommentCodec.decode(
             [self.poll(5) for i in range((length+3)//4)]
@@ -115,6 +139,7 @@ class FumenBufferReader(FumenBuffer):
 
 class FumenBufferWriter(FumenBuffer):
     def __init__(self, consts=FieldConstants):
+        """Create a FumenBufferWriter object with an empty buffer."""
         super().__init__()
         self._consts = consts
         self._field_previous = Field()
@@ -122,6 +147,7 @@ class FumenBufferWriter(FumenBuffer):
         self._field_repeat_buffer = FumenBuffer()
 
     def _field_diff(self, field, x, y):
+        # Return the difference between previous and current field at (x, y)
         y = self._consts.HEIGHT - y - 1
         return field.at(x, y) - self._field_previous.at(x, y)
 
@@ -131,10 +157,17 @@ class FumenBufferWriter(FumenBuffer):
         )
 
     def move_field_buffer(self):
+        """Move the additional buffer for field repeating count.
+        Due to the slow random access of deque, one additional buffer is used
+        to account for incoming data after wrting a repeating count.
+        One should call this method before outputting fumen string to avoid
+        incorrect results.
+        """
         self += self._field_repeat_buffer
         self._field_repeat_buffer.clear()
 
     def write_field(self, field):
+        """Write the given field to the buffer."""
         if field is None:
             diff = 0
             prev_diff = 0
@@ -166,13 +199,16 @@ class FumenBufferWriter(FumenBuffer):
             self._field_repeat_buffer.push(self._field_repeat_count, 1)
             self.move_field_buffer()
 
-
     def write_action(self, action):
+        """Write the given action and apply it to the previous field."""
         self._field_repeat_buffer.push(
             ActionCodec.encode(self._consts, action), 3)
         self._field_previous.apply_action(action)
 
     def write_comment(self, comment, prev_comment):
+        """Write the given comment to the buffer.
+        Return whether the comment is different from the previous one.
+        """
         comment = escape(comment)[:4095]
         prev_comment = escape(prev_comment)[:4095]
 

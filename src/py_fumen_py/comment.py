@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 class CommentCodec:
+    """Codec of comment string segment, from/to fumen data (int).
+    """
     _ENCODING_TABLE = (' !"#$%&\'()*+,-./0123456789:;<=>?@'
                       'ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`'
                       'abcdefghijklmnopqrstuvwxyz{|}~')

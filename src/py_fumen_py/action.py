@@ -7,6 +7,14 @@ from .operation import Mino, Rotation, Operation
 
 @dataclass
 class Action():
+    """A dataclass for storing encoded Fumen page flags and field changes.
+    Keyword arguments:
+    operation: the operation applied to the field.
+    rise: if the garbage in the field rises.
+    mirror: if the field is mirrored.
+    colorize: if the page is using SRS coloring. (only valid on page 0.)
+    lock: if the operation is locked and filled field lines are cleared.
+    """
     operation: Operation
     rise: bool
     mirror: bool
@@ -15,6 +23,8 @@ class Action():
     lock: bool
 
 class ActionCodec() :
+    """Codec of the dataclass Action, from/to fumen data (int).
+    """
     _DECODING_OFFSET = {
         Mino.I: {
             Rotation.REVERSE: (1, 0),

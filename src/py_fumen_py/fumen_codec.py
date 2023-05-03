@@ -9,6 +9,7 @@ from .page import Page, Flags, Refs
 from .quiz import Quiz
 
 def _get_reader(string):
+    # Initially parse the given input, and preapre the FumenBufferReader.
     string = string.split('&')[0]
     data = None
     for version in ['115', '110']:
@@ -28,6 +29,7 @@ def _get_reader(string):
         return FumenBufferReader(FieldConstants, data)
 
 def decode(string):
+    """Decode the given fumen string into usable data."""
     fumen_reader = _get_reader(string)
     pages = []
     prev_comment = ''
@@ -73,6 +75,7 @@ def decode(string):
     return pages
 
 def encode(pages):
+    """Encode the given pages into a fumen string."""
     fumen_writer = FumenBufferWriter()
     prev_comment = ''
     prev_lock = False

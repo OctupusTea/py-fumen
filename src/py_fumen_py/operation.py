@@ -8,6 +8,7 @@ from enum import IntEnum
 from .constant import FieldConstants as Consts
 
 class Mino(IntEnum):
+    """An IntEnum class representing a mino."""
     _ = 0
     EMPTY = 0
     I = 1
@@ -23,7 +24,10 @@ class Mino(IntEnum):
 
     @staticmethod
     def parse_name(name):
-    # parse_name() is added to support parsing of ' ' and lowercase names.
+        """Parse string as mino name and return corresponding Mino.
+        This is added beside Mino[name] to account for ' ' and lowercase names.
+        The string ' ' (a space) is parsed as Mino._.
+        """
         if name == ' ':
             return Mino._
         try:
@@ -35,6 +39,11 @@ class Mino(IntEnum):
         return self is not Mino._ and self is not Mino.X
 
     def shifted(self, amount, strict=False):
+        """Shift the mino numbering by an amount.
+        Keyword arguments:
+        amount: the shifting amount
+        strict: if the out-of-bound values should cause an error.
+        """
         if strict:
             return Mino(self+amount)
         else:
@@ -42,18 +51,14 @@ class Mino(IntEnum):
 
     def mirrored(self):
         return {
-            Mino._: Mino._,
-            Mino.I: Mino.I,
             Mino.L: Mino.J,
-            Mino.O: Mino.O,
             Mino.Z: Mino.S,
-            Mino.T: Mino.T,
             Mino.J: Mino.L,
             Mino.S: Mino.Z,
-            Mino.X: Mino.X,
-        }.get(self)
+        }.get(self, self)
 
 class Rotation(IntEnum):
+    """An IntEnum class representing a rotation."""
     REVERSE = 0
     RIGHT = 1
     R = 1
@@ -65,7 +70,12 @@ class Rotation(IntEnum):
 
     @staticmethod
     def parse_name(name):
-    # parse_name() is added to support parsing of numeric and lowercase names.
+        """Parse string as mino name and return corresponding Mino.
+        This is added beside Rotation[name] to account for numeric and
+        lowercase names.
+        The string '0' (zero) is parsed as Rotation.SPAWN.
+        The string '2' and '180' is parsed as Rotation.REVERSE.
+        """
         rotation = {
             '0': Rotation.SPAWN,
             '2': Rotation.REVERSE,
@@ -79,9 +89,15 @@ class Rotation(IntEnum):
             raise KeyError(f'Unknown rotation: {rotation}')
 
     def short_name(self):
-        return ['2', 'L', '0', 'R'][self]
+        """Return the common short name used by the community."""
+        return ['2', 'R', '0', 'L'][self]
 
     def shifted(self, amount, strict=False):
+        """Shift the rotation numbering by an amount.
+        Keyword arguments:
+        amount: the shifting amount
+        strict: if the out-of-bound values should cause an error.
+        """
         if strict:
             return Rotation(self+amount)
         else:
@@ -89,14 +105,13 @@ class Rotation(IntEnum):
 
     def mirrored(self):
         return {
-            Rotation.SPAWN: Rotation.SPAWN,
             Rotation.RIGHT: Rotation.LEFT,
-            Rotation.REVERSE: Rotation.REVERSE,
             Rotation.LEFT: Rotation.RIGHT,
-        }.get(self)
+        }.get(self, self)
 
 @dataclass
 class Operation():
+    """A dataclass for storing information about a tetrimino operation."""
     SHAPES = {
         Mino._: {},
         Mino.I: {Rotation.REVERSE: [[0, 0], [1, 0], [-1, 0], [-2, 0]],
