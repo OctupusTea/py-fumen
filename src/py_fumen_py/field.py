@@ -145,8 +145,8 @@ class Field:
         if operation is None:
             return None
 
-        shifted_operation = None
-        for dy in range(1, Const.HEIGHT):
+        shifted_operation = operation.shifted(0, 0)
+        for dy in range(1, Consts.HEIGHT):
             shifted_operation = operation.shifted(0, -dy)
             if not self.is_placeable(shifted_operation):
                 shifted_operation.shift(0, 1)
@@ -154,7 +154,8 @@ class Field:
         else:
             raise ValueError(f'operation cannot be dropped: {operation}')
 
-        self.place(self.shifted_operation)
+        if place:
+            self.lock(shifted_operation)
         return shifted_operation
 
     def rise(self):
