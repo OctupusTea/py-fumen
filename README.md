@@ -71,4 +71,4 @@ print(encode(pages))
 - `field` and `inner_field` are combined into one `field` module
 - Action, comment and field reading/writing are moved to `fumen_buffer`
 - Placement tetrimino `enum` objects are moved to `operation`
-- `quiz` works completely differently (based on [](fumen.zui.jp) instead of `tetris-fumen`)
+- `quiz` works completely differently (based on [this editor](fumen.zui.jp) instead of `tetris-fumen`)
