@@ -11,7 +11,7 @@ from py_fumen_py import *
 
 ### Module
 
-> **`bold names`** are automatically imported with `from py_fumen_py import *`
+* **`bold names`** are automatically imported with `from py_fumen_py import *`
 
 |Name|Description|Importable Names|
 |:-|:-|:-|
