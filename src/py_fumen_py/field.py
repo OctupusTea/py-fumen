@@ -146,18 +146,18 @@ class Field:
         if operation is None:
             return None
 
-        shifted_operation = operation.shifted(0, 0)
-        for dy in range(1, Consts.HEIGHT):
-            shifted_operation = operation.shifted(0, -dy)
+        prev_operation = operation.shifted(0, 0)
+        for dy in range(-1, -Consts.HEIGHT-1, -1):
+            shifted_operation = operation.shifted(0, dy)
             if not self.is_placeable(shifted_operation):
-                shifted_operation.shift(0, 1)
                 break
+            prev_operation = shifted_operation
         else:
             raise ValueError(f'operation cannot be dropped: {operation}')
 
         if place:
-            self.lock(shifted_operation)
-        return shifted_operation
+            self.lock(prev_operation)
+        return prev_operation
 
     def rise(self):
         """Rise the garbage line(s) into the playing field and clear the
