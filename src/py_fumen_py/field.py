@@ -7,7 +7,8 @@ class Field:
     """Keep data of a Tetris playing field."""
     @staticmethod
     def _empty_lines(height):
-        return [[Mino._] * Consts.WIDTH for y in range(height)]
+        empty_lines = [[Mino._] * Consts.WIDTH for y in range(height)]
+        return empty_lines[:]
 
     @staticmethod
     def _to_field_range(slice_=slice(None, None, None)):
@@ -65,7 +66,7 @@ class Field:
         instead of counting from the end of the field.
         """
         if isinstance(key, slice):
-            range_ = self._to_field_range(slice)
+            range_ = self._to_field_range(key)
             if range_.step == 1:
                 if range_.start >= 0 and range_.stop >= 0:
                     self._field[range_.start:range_.stop] = value
@@ -178,20 +179,20 @@ class Field:
             line[:] = [mino.mirrored() if mirror_color else mino
                        for mino in reversed(line)]
 
-    def shfit_up(self, amount=1):
+    def shift_up(self, amount=1):
         """Shift the playing field upwards.
         Keyword arguments:
         amount: (default: 1)
         """
         self[amount:] = self[0:Consts.HEIGHT-amount]
-        self[:amount] = self._empty_lines(amount)
+        self[0:amount] = self._empty_lines(amount)
 
     def shift_down(self, amount=1):
         """Shift the playing field downwards.
         Keyword arguments:
         amount: (default: 1)
         """
-        self[:Consts.HEIGHT-amount] = self[amount:]
+        self[0:Consts.HEIGHT-amount] = self[amount:]
         self[Consts.HEIGHT-amount:] = self._empty_lines(amount)
 
     def shift_left(self, amount=1, warp=False):
