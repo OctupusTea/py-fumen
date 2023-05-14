@@ -4,6 +4,12 @@ More Python-ish Python implementation of [Knewjade's tetris-fumen](https://githu
 
 Original project: [hsohliyt105's py-fumen](https://github.com/hsohliyt105/py-fumen)
 
+## Installation
+
+```bash
+python3 -m pip install py-fumen-py
+```
+
 ## Usage
 ```python
 from py_fumen_py import *
