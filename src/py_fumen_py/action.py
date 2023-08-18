@@ -108,7 +108,7 @@ class ActionCodec() :
             operation.mino, {}
         ).get(operation.rotation, (0, 0))
         x, y = ((dx + operation.x, dy + operation.y)
-                if operation.mino.is_colored() else (0, 22))
+                if operation.mino.is_colored() else (0, Consts.HEIGHT-1))
         return (consts.HEIGHT - y - 1) * consts.WIDTH + x
 
     @classmethod
