@@ -202,7 +202,10 @@ class Field:
         warp: if the left-most columns should be warpped to the right.
             (default: False)
         """
-        for line in self:
+        for line in self._field:
+            line[:] = (line[amount:]
+                       + (line[:amount] if warp else [Mino._]*amount))
+        for line in self._garbage:
             line[:] = (line[amount:]
                        + (line[:amount] if warp else [Mino._]*amount))
 
@@ -213,7 +216,10 @@ class Field:
         warp: if the right-most columns should be warpped to the left.
             (default: False)
         """
-        for line in self:
+        for line in self._field:
+            line[:] = ((line[-amount:] if warp else [Mino._]*amount)
+                       + line[:-amount])
+        for line in self._garbage:
             line[:] = ((line[-amount:] if warp else [Mino._]*amount)
                        + line[:-amount])
 

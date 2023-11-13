@@ -177,7 +177,7 @@ class Operation():
 
     def mirrored(self):
         mino = self.mino.mirrored()
-        if mino is Mino.I or self.Mino is Mino.O:
+        if mino is Mino.I or mino is Mino.O:
             rotation = self.rotation
             if (rotation is Rotation.REVERSE
                     or (rotation is Rotation.LEFT and mino is Mino.O)):
