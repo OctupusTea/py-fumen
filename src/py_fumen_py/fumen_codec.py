@@ -84,7 +84,7 @@ def encode(pages):
     for page in pages:
         page.flags = Flags() if page.flags is None else page.flags
         page.operation = (
-            Operation(Mino._, Rotation.REVERSE, 0, Consts.HEIGHT-1)
+            Operation(Mino._, Rotation.REVERSE, 0, FieldConstants.HEIGHT-1)
             if page.operation is None else page.operation
         )
         quiz = Quiz(prev_comment)

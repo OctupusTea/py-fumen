@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from .constant import FieldConstants
+from .constant import FieldConstants as Consts
 from .operation import Mino, Rotation, Operation
 
 @dataclass
