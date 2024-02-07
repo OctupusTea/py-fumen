@@ -153,7 +153,7 @@ class Operation():
     @classmethod
     def shape_at(cls, mino, rotation, x=0, y=0):
         return [[x+dx, y+dy] for dx, dy
-                in cls.SHAPES.get(mino, {}).get(rotation, (0, 0))]
+                in cls.SHAPES.get(mino, {}).get(rotation, [[0, 0]])]
 
     @classmethod
     def is_inside_at(cls, mino, rotation, x, y):
