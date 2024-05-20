@@ -82,8 +82,8 @@ def encode(pages):
     prev_mino = Mino._
 
     for page in pages:
-        page.flags = Flags() if page.flags is None else page.flags
-        page.operation = (
+        flags = Flags() if page.flags is None else page.flags
+        operation = (
             Operation(Mino._, Rotation.REVERSE, 0, FieldConstants.HEIGHT-1)
             if page.operation is None else page.operation
         )
@@ -94,16 +94,16 @@ def encode(pages):
 
         fumen_writer.write_field(page.field)
         fumen_writer.write_action(
-            Action(page.operation,
-            page.flags.rise,
-            page.flags.mirror,
-            page.flags.colorize,
+            Action(operation,
+            flags.rise,
+            flags.mirror,
+            flags.colorize,
             not escaped_compare(page.comment, prev_comment, 4095),
-            page.flags.lock))
+            flags.lock))
         fumen_writer.write_comment(page.comment, prev_comment)
         prev_comment = page.comment if page.comment else ''
-        prev_lock = page.flags.lock
-        prev_mino = page.operation.mino
+        prev_lock = flags.lock
+        prev_mino = operation.mino
 
     fumen_writer.move_field_buffer()
     return str(fumen_writer)
